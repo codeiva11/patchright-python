@@ -202,6 +202,18 @@ with open("playwright-python/playwright/_impl/_browser.py") as f:
                 ),
             ))
             node.args.kw_defaults.append(ast.Constant(value=None))
+            # Turnstile / challenge auto-solve (default on in the driver;
+            # pass turnstile=False to opt out). Forwarded to the driver via
+            # locals_to_params, mirroring focusControl above.
+            node.args.kwonlyargs.append(ast.arg(
+                arg="turnstile",
+                annotation=ast.Subscript(
+                    value=ast.Name(id="Optional", ctx=ast.Load()),
+                    slice=ast.Name(id="bool", ctx=ast.Load()),
+                    ctx=ast.Load(),
+                ),
+            ))
+            node.args.kw_defaults.append(ast.Constant(value=None))
     patch_file("playwright-python/playwright/_impl/_browser.py", browser_tree)
 
 # Patching playwright/_impl/_browser_type.py
@@ -213,6 +225,16 @@ with open("playwright-python/playwright/_impl/_browser_type.py") as f:
         if isinstance(node, ast.AsyncFunctionDef) and node.name == "launch_persistent_context":
             node.args.kwonlyargs.append(ast.arg(
                 arg="focusControl",
+                annotation=ast.Subscript(
+                    value=ast.Name(id="Optional", ctx=ast.Load()),
+                    slice=ast.Name(id="bool", ctx=ast.Load()),
+                    ctx=ast.Load(),
+                ),
+            ))
+            node.args.kw_defaults.append(ast.Constant(value=None))
+            # Turnstile / challenge auto-solve (see _browser.py above).
+            node.args.kwonlyargs.append(ast.arg(
+                arg="turnstile",
                 annotation=ast.Subscript(
                     value=ast.Name(id="Optional", ctx=ast.Load()),
                     slice=ast.Name(id="bool", ctx=ast.Load()),
@@ -708,6 +730,21 @@ with open("playwright-python/playwright/async_api/_generated.py") as f:
                                 ast.keyword(arg="focusControl", value=ast.Name(id="focus_control", ctx=ast.Load()))
                             )
 
+                    # Turnstile / challenge auto-solve (default on in the driver;
+                    # pass turnstile=False to opt out).
+                    node.args.kwonlyargs.append(ast.arg(arg="turnstile", annotation=ast.Subscript(
+                        value=ast.Name(id="typing.Optional", ctx=ast.Load()),
+                        slice=ast.Name(id="bool", ctx=ast.Load()),
+                        ctx=ast.Load(),
+                    )))
+                    node.args.kw_defaults.append(ast.Constant(value=None))
+
+                    for subnode in ast.walk(node):
+                        if isinstance(subnode, ast.Call) and isinstance(subnode.func, ast.Attribute) and subnode.func.attr == node.name:
+                            subnode.keywords.append(
+                                ast.keyword(arg="turnstile", value=ast.Name(id="turnstile", ctx=ast.Load()))
+                            )
+
         if isinstance(class_node, ast.ClassDef) and class_node.name == "Route":
             for node in class_node.body:
                 if isinstance(node, ast.AsyncFunctionDef) and node.name in ["fallback", "continue_"]:
@@ -780,6 +817,22 @@ with open("playwright-python/playwright/sync_api/_generated.py") as f:
                             if isinstance(subnode, ast.Call) and isinstance(subnode.func, ast.Attribute) and subnode.func.attr == node.name:
                                 subnode.keywords.append(
                                     ast.keyword(arg="focusControl", value=ast.Name(id="focus_control", ctx=ast.Load()))
+                                )
+
+                    # Turnstile / challenge auto-solve (default on in the driver;
+                    # pass turnstile=False to opt out).
+                    node.args.kwonlyargs.append(ast.arg(arg="turnstile", annotation=ast.Subscript(
+                        value=ast.Name(id="typing.Optional", ctx=ast.Load()),
+                        slice=ast.Name(id="bool", ctx=ast.Load()),
+                        ctx=ast.Load(),
+                    )))
+                    node.args.kw_defaults.append(ast.Constant(value=None))
+
+                    if class_node.name != "BrowserContext" and node.name != "new_page":
+                        for subnode in ast.walk(node):
+                            if isinstance(subnode, ast.Call) and isinstance(subnode.func, ast.Attribute) and subnode.func.attr == node.name:
+                                subnode.keywords.append(
+                                    ast.keyword(arg="turnstile", value=ast.Name(id="turnstile", ctx=ast.Load()))
                                 )
 
         if isinstance(class_node, ast.ClassDef) and class_node.name == "Route":
